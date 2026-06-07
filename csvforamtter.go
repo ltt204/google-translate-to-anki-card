@@ -3,10 +3,12 @@ package main
 import (
 	"context"
 	"encoding/csv"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 
 	"google.golang.org/genai"
@@ -26,7 +28,7 @@ import (
 //   ambiguous,/æmˈbɪɡjuəs/,adjective,Mơ hồ - không rõ ràng,The instructions were [......] so nobody knew what to do.,ambiguous.mp3,EN→VI,en-vi adjective
 //   resilient,/rɪˈzɪliənt/,adjective,Kiên cường - có khả năng phục hồi,She proved to be [......] after the setback.,resilient.mp3,EN→VI,en-vi adjective
 
-func TransformToAnkiFormat(ctx context.Context, client *http.Client, chat *genai.Chat, filename string) []AnkiRecord {
+func TransformToAnkiFormat(ctx context.Context, client *http.Client, chat *genai.Chat, filename string, knownWords map[string]bool) []AnkiRecord {
 	file, err := os.Open(filename)
 	if err != nil {
 		log.Fatalf("Failed to open file %s: %v", filename, err)
@@ -47,6 +49,12 @@ func TransformToAnkiFormat(ctx context.Context, client *http.Client, chat *genai
 
 			if err != nil {
 				log.Fatalf("Failed to read record: %v", err)
+			}
+
+			word := strings.ToLower(record[2])
+			if knownWords[word] {
+				fmt.Printf("[SKIP] %s already in deck\n", record[2])
+				continue
 			}
 
 			googleTranslateRecord := GoogleTranslateCSVRecord{
@@ -88,6 +96,7 @@ func TransformToAnkiFormat(ctx context.Context, client *http.Client, chat *genai
 				// Format the data to Anki format
 				for _, entry := range llmsResponse {
 					results <- AnkiRecord{
+						NoteID:        raw.OriginWord + "_" + entry.PartOfSpeech,
 						Word:          raw.OriginWord,
 						Definition:    raw.TranslatedWord,
 						PartOfSpeech:  entry.PartOfSpeech,

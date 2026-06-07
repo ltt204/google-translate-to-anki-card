@@ -36,19 +36,26 @@ func GetDictionary(client *http.Client, word string) (string, string) {
 		log.Fatal("Failed to decode dictionary: ", err)
 	}
 
-	phonetics := apiResponse[0].Phonetics
 	// Get the one with audio and phonetic text
 	for _, phonetic := range apiResponse[0].Phonetics {
 		if phonetic.Text != "" && phonetic.Audio != "" {
-			auidoPath := downloadAudio(word, phonetic.Audio)
-			fmt.Printf("[DICT] Phonetic: %s, Audio Path: %s\n", phonetic.Text, auidoPath)
-			return phonetic.Text, auidoPath
+			audioPath := downloadAudio(word, phonetic.Audio)
+			fmt.Printf("[DICT] Phonetic: %s, Audio Path: %s\n", phonetic.Text, audioPath)
+			return phonetic.Text, audioPath
 		}
 	}
 
-	// Fallback to the first one
-	fmt.Printf("[DICT] Phonetic: %s, Audio Path: %s\n", phonetics[0].Text, "")
-	return phonetics[0].Text, ""
+	// Fallback: return first phonetic text with no audio
+	for _, phonetic := range apiResponse[0].Phonetics {
+		if phonetic.Text != "" {
+			fmt.Printf("[DICT] Phonetic: %s, Audio Path: \n", phonetic.Text)
+			return phonetic.Text, ""
+		}
+	}
+
+	// No phonetics at all
+	fmt.Printf("[DICT] No phonetics found for %s\n", word)
+	return "", ""
 }
 
 func downloadAudio(word, url string) string {

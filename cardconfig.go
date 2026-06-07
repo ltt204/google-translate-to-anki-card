@@ -3,7 +3,7 @@ package main
 const ankiConnectURL = "http://localhost:8765"
 const modelName = "VocabPro"
 
-var wantedFields = []string{"Word", "IPA", "Part_of_Speech", "Definition_VI", "Sentence_Front", "Synonym_Hint", "Structure_Hint", "Audio"}
+var wantedFields = []string{"NoteID", "Word", "IPA", "Part_of_Speech", "Definition_VI", "Sentence_Front", "Synonym_Hint", "Structure_Hint", "Audio"}
 
 const cardFront = `<div class="sentence">{{Sentence_Front}}</div>
 <div class="hint">[ {{Part_of_Speech}} | {{Synonym_Hint}}{{#Structure_Hint}} | {{Structure_Hint}}{{/Structure_Hint}} ]</div>

@@ -10,6 +10,7 @@ type GoogleTranslateCSVRecord struct {
 }
 
 type AnkiRecord struct {
+	NoteID        string `json:"note_id"`
 	Word          string `json:"word"`
 	Phonetic      string `json:"phonetic"`
 	PartOfSpeech  string `json:"part_of_speech"`

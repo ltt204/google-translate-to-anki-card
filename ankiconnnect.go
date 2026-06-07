@@ -11,6 +11,49 @@ import (
 	"strings"
 )
 
+// FetchExistingWords returns the set of words already in the deck (lowercased).
+// NoteID format is "word_partOfSpeech", so we extract the word part only.
+func FetchExistingWords(client *http.Client) map[string]bool {
+	raw, err := ankiDo(client, "findNotes", map[string]any{
+		"query": "deck:vocabulary note:" + modelName,
+	})
+	if err != nil {
+		log.Println("[WARN] fetchExistingWords findNotes:", err)
+		return map[string]bool{}
+	}
+
+	var noteIDs []int64
+	json.Unmarshal(raw, &noteIDs)
+	if len(noteIDs) == 0 {
+		return map[string]bool{}
+	}
+
+	raw, err = ankiDo(client, "notesInfo", map[string]any{"notes": noteIDs})
+	if err != nil {
+		log.Println("[WARN] fetchExistingWords notesInfo:", err)
+		return map[string]bool{}
+	}
+
+	var notes []struct {
+		Fields map[string]struct {
+			Value string `json:"value"`
+		} `json:"fields"`
+	}
+	json.Unmarshal(raw, &notes)
+
+	words := make(map[string]bool, len(notes))
+	for _, n := range notes {
+		if f, ok := n.Fields["NoteID"]; ok {
+			word := strings.SplitN(f.Value, "_", 2)[0]
+			if word != "" {
+				words[strings.ToLower(word)] = true
+			}
+		}
+	}
+	fmt.Printf("[ANKI] %d words already in deck\n", len(words))
+	return words
+}
+
 func ankiDo(client *http.Client, action string, params any) (json.RawMessage, error) {
 	body, _ := json.Marshal(ankiRequest{Action: action, Version: 6, Params: params})
 	resp, err := client.Post(ankiConnectURL, "application/json", bytes.NewReader(body))
@@ -130,6 +173,7 @@ func PushToAnki(client *http.Client, records []AnkiRecord) {
 			DeckName:  "vocabulary",
 			ModelName: modelName,
 			Fields: map[string]string{
+				"NoteID":         r.NoteID,
 				"Word":           r.Word,
 				"IPA":            r.Phonetic,
 				"Part_of_Speech": r.PartOfSpeech,
@@ -139,7 +183,7 @@ func PushToAnki(client *http.Client, records []AnkiRecord) {
 				"Structure_Hint": r.StructureHint,
 				"Audio":          "",
 			},
-			Options: noteOptions{AllowDuplicate: true, DuplicateScope: "deck"},
+			Options: noteOptions{AllowDuplicate: false, DuplicateScope: "deck"},
 			Tags:    parseTags(r.Tags),
 		}
 
@@ -160,12 +204,36 @@ func PushToAnki(client *http.Client, records []AnkiRecord) {
 		notes = append(notes, n)
 	}
 
-	raw, err := ankiDo(client, "addNotes", map[string]any{"notes": notes})
+	// Filter out notes that already exist before calling addNotes.
+	// canAddNotes uses the first field (NoteID) for duplicate detection.
+	raw, err := ankiDo(client, "canAddNotes", map[string]any{"notes": notes})
+	if err != nil {
+		log.Fatal("canAddNotes: ", err)
+	}
+	var canAdd []bool
+	json.Unmarshal(raw, &canAdd)
+
+	var toAdd []note
+	skipped := 0
+	for i, ok := range canAdd {
+		if ok {
+			toAdd = append(toAdd, notes[i])
+		} else {
+			skipped++
+		}
+	}
+	fmt.Printf("[ANKI] %d/%d already exist, adding %d new\n", skipped, len(notes), len(toAdd))
+
+	if len(toAdd) == 0 {
+		fmt.Println("[ANKI] Nothing to add")
+		return
+	}
+
+	raw, err = ankiDo(client, "addNotes", map[string]any{"notes": toAdd})
 	if err != nil {
 		log.Fatal("addNotes: ", err)
 	}
 
-	// addNotes returns an array of note IDs (null for duplicates/failures)
 	var ids []any
 	json.Unmarshal(raw, &ids)
 	added := 0

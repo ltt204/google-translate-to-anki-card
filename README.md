@@ -1,4 +1,4 @@
-# anki-creation
+# gt2anki
 
 Turns your Google Translate saved words export into a ready-to-study Anki deck — with IPA, audio, fill-in-the-blank sentences, and smart hints — fully automated.
 
@@ -87,8 +87,7 @@ The `VocabPro` note type is created automatically on first run and updated on su
 
 ## Todo
 
-- [ ] This is not handle the duplicate words, if I import the same csv file again, it will create the same cards again.
-- [ ] Maybe I should handle the duplicate words in the AnkiConnect level.
+- [x] This is not handle the duplicate words, if I import the same csv file again, it will create the same cards again.
 - [ ] Maybe there is more cases I haven't considered, you can improve this project based on your experience.
 
 

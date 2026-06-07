@@ -26,6 +26,7 @@ func main() {
 		log.Fatal("Failed to create chat: ", err)
 	}
 
-	records := TransformToAnkiFormat(ctx, client, chat, "saved_translations.csv")
+	knownWords := FetchExistingWords(client)
+	records := TransformToAnkiFormat(ctx, client, chat, "saved_translations.csv", knownWords)
 	PushToAnki(client, records)
 }

@@ -1,4 +1,4 @@
-module anki-creation
+module gt2anki
 
 go 1.25.1
 
